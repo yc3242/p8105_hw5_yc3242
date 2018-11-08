@@ -2,17 +2,35 @@
 title: "p8105_hw5_yc3242"
 author: "Youn Kyeong Chang (uni# yc3242)"
 date: "November 7, 2018"
-output: html_document
+output: github_document
 ---
 
 ```{r}
 library(tidyverse)
 ```
 
+### Problem 1
+
 ```{r}
-my_df = tibble(filenames = list.files(path = "data/", full.names = T))
-my_df$data = map(my_df$filenames, read_csv)
-my_df <- my_df %>% 
-  unnest()
+study_data = 
+  tibble(file_names = list.files(path = "data/", full.names = T))
+
+study_data$data =
+  map(study_data$file_names, read_csv)
+
+study_data =
+  study_data %>% 
+  unnest() %>% 
+  separate(file_names, into = c("arm", "id"), sep = "_") %>% 
+  mutate(arm = str_remove(arm, "data/"),
+         id = str_remove(id, ".csv")) %>% 
+  gather(key = "week", value = "value", "week_1":"week_8") %>% 
+  mutate(week = str_remove(week, "week_"))
+```
+
+### Problem 2
+
+```{r}
+pb2 = read_csv("https://raw.githubusercontent.com/washingtonpost/data-homicides/master/homicide-data.csv")
 ```
 
