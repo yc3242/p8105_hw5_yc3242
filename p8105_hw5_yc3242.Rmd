@@ -1,0 +1,18 @@
+---
+title: "p8105_hw5_yc3242"
+author: "Youn Kyeong Chang (uni# yc3242)"
+date: "November 7, 2018"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+my_df = tibble(filenames = list.files(path = "data/", full.names = T))
+my_df$data = map(my_df$filenames, read_csv)
+my_df <- my_df %>% 
+  unnest()
+```
+
