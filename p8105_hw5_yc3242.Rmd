@@ -11,9 +11,10 @@ library(tidyverse)
 
 ### Problem 1
 
-First, I created a tidy dataframe containing data from all pariticipants, including the subject ID, arm, and observations over time.
+#### 1-(1)
+: Create a tidy dataframe containing data from all pariticipants, including the subject ID, arm, and observations over time.
 
-```{r load_study_data}
+```{r load_study_data, message = FALSE}
 # Started with a dataframe containing all file names
 study_data = 
   tibble(file_names = list.files(path = "data/", full.names = T))
@@ -33,7 +34,8 @@ study_data =
   mutate(week = as.numeric(str_remove(week, "week_")))
 ```
 
-Next, I made a spaghetti plot showing observations on each subject over time.
+#### 1-(2)
+: Spaghetti plot showing observations on each subject over time.
 
 ```{r plot_study_data}
 study_data %>% 
@@ -63,7 +65,97 @@ Average observation is similar at starting point week 0 but over time, average o
 
 ### Problem 2
 
+#### 2-(1) 
+: load and describe raw data.
+
 ```{r}
-pb2 = read_csv("https://raw.githubusercontent.com/washingtonpost/data-homicides/master/homicide-data.csv")
+homicide_data = 
+  read_csv("https://raw.githubusercontent.com/washingtonpost/data-homicides/master/homicide-data.csv") %>% 
+  janitor::clean_names()
 ```
 
+The data consists of `r nrow(homicide_data)` observations and `r ncol(homicide_data)` variables as follows:
+
+- `uid`: report identifier
+- `reported_date`: reported date
+- `victim_last`: Last name of victim
+- `victim_first`: First name of victim
+- `victim_race`: Race of victim
+- `victim_age`: Age of victim
+- `victim_sex`: Sex of victim
+- `city`: city of homicide
+- `state`: State of homicide 
+- `lat`: latitude of homicide 
+- `lon`: longitude of homicide 
+- `disposition`: Case classification
+
+#### 2-(2)
+: Create a city_state variable.
+
+```{r}
+homicide_data = 
+  homicide_data %>% 
+  unite(city_state, city, state, sep = ",") %>% 
+  mutate(city_state = recode(city_state, "Tulsa,AL" = "Tulsa,OK")) 
+```
+
+#### 2-(3)
+: Total number of homicide and the number of unsolved homicides.
+
+```{r}
+ttl_unsol = 
+homicide_data %>%
+  group_by(city_state) %>% 
+  summarize(total = n(), 
+            unsolved = sum(disposition %in% c("Closed without arrest", "Open/No arrest")))
+
+ttl_unsol
+```
+
+#### 2-(4)
+: For the city of Baltimore, MD, estimate the proportion of homicides that are unsolved.
+
+```{r}
+prop_unsol = function(city) {
+  
+  city = ttl_unsol %>% 
+    filter(city_state == city)
+  
+  prop_city = prop.test(city$unsolved, city$total)
+
+  broom::tidy(prop_city) %>% 
+  select(estimate, conf.low, conf.high)
+}
+
+prop_unsol("Baltimore,MD")
+```
+
+```{r}
+prop_unsol = function(city) {
+  
+  city = 
+    ttl_unsol %>% 
+    filter(city_state == city)
+  
+  prop.test(city$unsolved, city$total)
+
+}
+
+tidy_prop_unsol = function(x) {
+  broom::tidy(x) %>% 
+  select(estimate, conf.low, conf.high)
+}
+```
+
+
+###2-(5)
+: proportion of unsolved homicides for each of the cities
+
+```{r}
+
+```
+
+
+Now run prop.test for each of the cities in your dataset, and extract both the proportion of unsolved homicides and the confidence interval for each. Do this within a “tidy” pipeline, making use of  purrr::map, purrr::map2, list columns and unnest as necessary to create a tidy dataframe with estimated proportions and CIs for each city.
+
+Create a plot that shows the estimates and CIs for each city – check out geom_errorbar for a way to add error bars based on the upper and lower limits. Organize cities according to the proportion of unsolved homicides.
