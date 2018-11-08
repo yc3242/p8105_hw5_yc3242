@@ -11,22 +11,55 @@ library(tidyverse)
 
 ### Problem 1
 
-```{r}
+First, I created a tidy dataframe containing data from all pariticipants, including the subject ID, arm, and observations over time.
+
+```{r load_study_data}
+# Started with a dataframe containing all file names
 study_data = 
   tibble(file_names = list.files(path = "data/", full.names = T))
 
+# Iterated over file names and read in data for each subject and saved them as a data variable in the dataframe
 study_data$data =
   map(study_data$file_names, read_csv)
 
+# Tidied data 
 study_data =
   study_data %>% 
   unnest() %>% 
   separate(file_names, into = c("arm", "id"), sep = "_") %>% 
   mutate(arm = str_remove(arm, "data/"),
          id = str_remove(id, ".csv")) %>% 
-  gather(key = "week", value = "value", "week_1":"week_8") %>% 
-  mutate(week = str_remove(week, "week_"))
+  gather(key = "week", value = "obs", "week_1":"week_8") %>% 
+  mutate(week = as.numeric(str_remove(week, "week_")))
 ```
+
+Next, I made a spaghetti plot showing observations on each subject over time.
+
+```{r plot_study_data}
+study_data %>% 
+  ggplot(aes(x = week, y = obs, group = id)) +
+  geom_line(aes(color = arm), size = 1) +
+  labs(
+    title = "Observations on each subject over time",
+    y = "observation"
+  ) +
+  facet_grid(~ arm) +
+  stat_summary(aes(group = arm), fun.y = "mean", geom = "point", 
+               color = "blue", size = 3, shape = 17) +
+  theme(plot.title = element_text(size = 12),
+        strip.background = element_rect(fill = "black"),
+        strip.text = element_text(color = "white", face = "bold")) 
+```
+
+```{r}
+study_data %>% 
+  group_by(arm, id) %>% 
+  ggplot(aes(x = week, y = obs, color = arm, type = id)) +
+  geom_line() +
+  stat_summary(aes(group = arm), fun.y = "mean", geom = "line", color = "blue") 
+```
+
+Average observation is similar at starting point week 0 but over time, average observation in control group remains constant while in exosure group is increasing. 
 
 ### Problem 2
 
