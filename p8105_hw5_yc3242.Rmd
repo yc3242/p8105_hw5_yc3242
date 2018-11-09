@@ -48,18 +48,12 @@ study_data %>%
   facet_grid(~ arm) +
   stat_summary(aes(group = arm), fun.y = "mean", geom = "point", 
                color = "blue", size = 3, shape = 17) +
+  theme_bw() +
   theme(plot.title = element_text(size = 12),
         strip.background = element_rect(fill = "black"),
         strip.text = element_text(color = "white", face = "bold")) 
 ```
 
-```{r}
-study_data %>% 
-  group_by(arm, id) %>% 
-  ggplot(aes(x = week, y = obs, color = arm, type = id)) +
-  geom_line() +
-  stat_summary(aes(group = arm), fun.y = "mean", geom = "line", color = "blue") 
-```
 
 Average observation is similar at starting point week 0 but over time, average observation in control group remains constant while in exosure group is increasing. 
 
@@ -68,7 +62,7 @@ Average observation is similar at starting point week 0 but over time, average o
 #### 2-(1) 
 : load and describe raw data.
 
-```{r}
+```{r homicide_data_load}
 homicide_data = 
   read_csv("https://raw.githubusercontent.com/washingtonpost/data-homicides/master/homicide-data.csv") %>% 
   janitor::clean_names()
@@ -90,9 +84,9 @@ The data consists of `r nrow(homicide_data)` observations and `r ncol(homicide_d
 - `disposition`: Case classification
 
 #### 2-(2)
-: Create a city_state variable.
+: Create a `city_state` variable.
 
-```{r}
+```{r city_state}
 homicide_data = 
   homicide_data %>% 
   unite(city_state, city, state, sep = ",") %>% 
@@ -114,37 +108,25 @@ ttl_unsol
 
 #### 2-(4)
 : For the city of Baltimore, MD, estimate the proportion of homicides that are unsolved.
-
 ```{r}
-prop_unsol = function(city) {
-  
-  city = ttl_unsol %>% 
-    filter(city_state == city)
-  
-  prop_city = prop.test(city$unsolved, city$total)
+# ttl_unsol only for Baltimore,MD
+ttl_unsol_balti = 
+  ttl_unsol %>% 
+  filter(city_state == "Baltimore,MD") 
 
-  broom::tidy(prop_city) %>% 
+# Prop.test
+balti_prop = 
+  prop.test(ttl_unsol_balti$unsolved, ttl_unsol_balti$total)
+
+balti_prop
+
+# Dataframe
+balti_prop_df =
+  balti_prop %>% 
+  broom::tidy() %>% 
   select(estimate, conf.low, conf.high)
-}
 
-prop_unsol("Baltimore,MD")
-```
-
-```{r}
-prop_unsol = function(city) {
-  
-  city = 
-    ttl_unsol %>% 
-    filter(city_state == city)
-  
-  prop.test(city$unsolved, city$total)
-
-}
-
-tidy_prop_unsol = function(x) {
-  broom::tidy(x) %>% 
-  select(estimate, conf.low, conf.high)
-}
+balti_prop_df
 ```
 
 
@@ -152,10 +134,32 @@ tidy_prop_unsol = function(x) {
 : proportion of unsolved homicides for each of the cities
 
 ```{r}
+prop_unsol = 
+  ttl_unsol %>% 
+  mutate(test_res = map2(unsolved, total, prop.test)) %>% 
+  mutate(est_CI = map(test_res, broom::tidy)) %>% 
+  select(city_state, est_CI) %>% 
+  unnest() %>% 
+  select(city_state,estimate, conf.low, conf.high)
 
+prop_unsol
 ```
 
 
-Now run prop.test for each of the cities in your dataset, and extract both the proportion of unsolved homicides and the confidence interval for each. Do this within a “tidy” pipeline, making use of  purrr::map, purrr::map2, list columns and unnest as necessary to create a tidy dataframe with estimated proportions and CIs for each city.
+###2-(6)
+: Create a plot that shows the estimates and CIs for each city – check out geom_errorbar for a way to add error bars based on the upper and lower limits. Organize cities according to the proportion of unsolved homicides.
 
-Create a plot that shows the estimates and CIs for each city – check out geom_errorbar for a way to add error bars based on the upper and lower limits. Organize cities according to the proportion of unsolved homicides.
+```{r prop_unsol_plot, fig.height = 7}
+prop_unsol %>% 
+  mutate(city_state = fct_reorder(city_state, estimate)) %>% 
+  ggplot(aes(x = city_state, y = estimate)) + 
+  geom_point() + 
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), color = "darkred") + 
+  coord_flip() + 
+  labs(title = "Proportion of unsolved cases for each city",
+       subtitle = "Error bar using mean as center with 95% CIs",
+       y = "Proportion of unsolved cases", 
+       x = "City") +
+  theme_bw()
+```
+
